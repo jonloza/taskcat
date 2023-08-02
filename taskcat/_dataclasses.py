@@ -44,12 +44,10 @@ METADATA: Mapping[str, Mapping[str, Any]] = {
         "description": "List of AWS regions where artifacts need to be copied. This helps same region artifact bucket access to resources"
     },
     "az_ids": {
-        "description": "List of Availablilty Zones ID's to exclude when generating "
-        "availability zones",
+        "description": "List of Availablilty Zones ID's to exclude when generating " "availability zones",
     },
     "package_lambda": {
-        "description": "Package Lambda functions into zips before uploading to s3, "
-        "set to false to disable",
+        "description": "Package Lambda functions into zips before uploading to s3, " "set to false to disable",
         "examples": [True, False],
     },
     "s3_regional_buckets": {
@@ -68,8 +66,7 @@ METADATA: Mapping[str, Mapping[str, Any]] = {
         "examples": ["functions/source"],
     },
     "s3_bucket": {
-        "description": "Name of S3 bucket to upload project to, if left out "
-        "a bucket will be auto-generated",
+        "description": "Name of S3 bucket to upload project to, if left out " "a bucket will be auto-generated",
         "examples": ["my-s3-bucket-name"],
     },
     "parameters": {
@@ -77,14 +74,12 @@ METADATA: Mapping[str, Mapping[str, Any]] = {
         "parameters provided in global config take precedence",
     },
     "build_submodules": {
-        "description": "Build Lambda zips recursively for submodules, "
-        "set to false to disable",
+        "description": "Build Lambda zips recursively for submodules, " "set to false to disable",
         "default": True,
         "examples": [True, False],
     },
     "template": {
-        "description": "path to template file relative to the project "
-        "config file path",
+        "description": "path to template file relative to the project " "config file path",
         "examples": ["cloudformation_templates/"],
     },
     "tags": {
@@ -142,8 +137,7 @@ class ParameterKeyField(FieldEncoder):
         return {
             "type": "string",
             "pattern": r"[a-zA-Z0-9]*^$",
-            "Description": "CloudFormation parameter name, can contain letters and "
-            "numbers only",
+            "Description": "CloudFormation parameter name, can contain letters and " "numbers only",
             "examples": ["ExtremaFajitas", "PizzaShooters", "ShrimpPoppers"],
         }
 
@@ -156,7 +150,7 @@ class RegionField(FieldEncoder):
     def json_schema(self):
         return {
             "type": "string",
-            "pattern": r"^(ap|eu|us|sa|ca|cn|af|me|us-gov)-(central|south|north|east|"
+            "pattern": r"^(ap|eu|us|sa|ca|cn|af|me|il|us-gov)-(central|south|north|east|"
             r"west|southeast|southwest|northeast|northwest)-[0-9]$",
             "description": "AWS Region name",
             "examples": ["us-east-1"],
@@ -317,19 +311,13 @@ class S3BucketObj:
             if not self.regional_buckets:
                 self.s3_client.put_bucket_tagging(
                     Bucket=self.name,
-                    Tagging={
-                        "TagSet": [{"Key": "taskcat-id", "Value": self.taskcat_id.hex}]
-                    },
+                    Tagging={"TagSet": [{"Key": "taskcat-id", "Value": self.taskcat_id.hex}]},
                 )
 
             if self.sigv4 is True:
-                self.s3_client.put_bucket_policy(
-                    Bucket=self.name, Policy=self.sigv4_policy
-                )
+                self.s3_client.put_bucket_policy(Bucket=self.name, Policy=self.sigv4_policy)
             if self.org_id is not None:
-                self.s3_client.put_bucket_policy(
-                    Bucket=self.name, Policy=self.multi_account_policy
-                )
+                self.s3_client.put_bucket_policy(Bucket=self.name, Policy=self.multi_account_policy)
         except Exception as e:  # pylint: disable=broad-except
             try:
                 self.s3_client.delete_bucket(Bucket=self.name)
@@ -342,9 +330,7 @@ class S3BucketObj:
             LOG.error(f"Will not empty bucket created outside of taskcat {self.name}")
             return
         objects_to_delete = []
-        pages = self.s3_client.get_paginator("list_objects_v2").paginate(
-            Bucket=self.name
-        )
+        pages = self.s3_client.get_paginator("list_objects_v2").paginate(Bucket=self.name)
         for page in pages:
             objects = []
             for obj in page.get("Contents", []):
@@ -353,15 +339,10 @@ class S3BucketObj:
                     del_obj["VersionId"] = obj["VersionId"]
                 objects.append(del_obj)
             objects_to_delete += objects
-        batched_objects = [
-            objects_to_delete[i : i + 1000]
-            for i in range(0, len(objects_to_delete), 1000)
-        ]
+        batched_objects = [objects_to_delete[i : i + 1000] for i in range(0, len(objects_to_delete), 1000)]
         for objects in batched_objects:
             if objects:
-                self.s3_client.delete_objects(
-                    Bucket=self.name, Delete={"Objects": objects}
-                )
+                self.s3_client.delete_objects(Bucket=self.name, Delete={"Objects": objects})
 
     def delete(self, delete_objects=False):
         if not self.auto_generated:
@@ -380,9 +361,7 @@ class S3BucketObj:
 
     def _bucket_matches_existing(self):
         try:
-            location = self.s3_client.get_bucket_location(Bucket=self.name)[
-                "LocationConstraint"
-            ]
+            location = self.s3_client.get_bucket_location(Bucket=self.name)["LocationConstraint"]
             location = location if location else "us-east-1"
         except self.s3_client.exceptions.NoSuchBucket:
             location = None
@@ -399,10 +378,7 @@ class S3BucketObj:
             uid = tags.get("taskcat-id")
             uid = UUID(uid) if uid else uid
             if uid != self.taskcat_id:
-                raise TaskCatException(
-                    f"bucket {self.name} already exists, but does not have a matching"
-                    f" uuid"
-                )
+                raise TaskCatException(f"bucket {self.name} already exists, but does not have a matching" f" uuid")
             return True
         return False
 
@@ -489,16 +465,10 @@ class TestObj:
         # TODO: prefix *OR* suffix
         if self._stack_name_prefix:
             if self._shorten_stack_name:
-                return "{}{}-{}".format(
-                    self._stack_name_prefix, self.name, self.uid.hex[:6]
-                )
-            return "{}{}-{}-{}".format(
-                self._stack_name_prefix, self._project_name, self.name, self.uid.hex
-            )
+                return "{}{}-{}".format(self._stack_name_prefix, self.name, self.uid.hex[:6])
+            return "{}{}-{}-{}".format(self._stack_name_prefix, self._project_name, self.name, self.uid.hex)
         if self._stack_name_suffix:
-            return "{}{}-{}-{}".format(
-                prefix, self._project_name, self.name, self._stack_name_suffix
-            )
+            return "{}{}-{}-{}".format(prefix, self._project_name, self.name, self._stack_name_suffix)
         if self._shorten_stack_name:
             return "{}{}-{}".format(prefix, self.name, self.uid.hex[:6])
         return "{}{}-{}-{}".format(prefix, self._project_name, self.name, self.uid.hex)
@@ -519,27 +489,15 @@ class HookData(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
 class GeneralConfig(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
     """General configuration settings."""
 
-    parameters: Optional[Dict[ParameterKey, ParameterValue]] = field(
-        default=None, metadata=METADATA["parameters"]
-    )
-    tags: Optional[Dict[TagKey, TagValue]] = field(
-        default=None, metadata=METADATA["tags"]
-    )
+    parameters: Optional[Dict[ParameterKey, ParameterValue]] = field(default=None, metadata=METADATA["parameters"])
+    tags: Optional[Dict[TagKey, TagValue]] = field(default=None, metadata=METADATA["tags"])
     auth: Optional[Dict[Region, str]] = field(default=None, metadata=METADATA["auth"])
     s3_bucket: Optional[str] = field(default=None, metadata=METADATA["s3_bucket"])
-    s3_regional_buckets: Optional[bool] = field(
-        default=None, metadata=METADATA["s3_regional_buckets"]
-    )
+    s3_regional_buckets: Optional[bool] = field(default=None, metadata=METADATA["s3_regional_buckets"])
     regions: Optional[List[Region]] = field(default=None, metadata=METADATA["regions"])
-    artifact_regions: Optional[List[Region]] = field(
-        default=None, metadata=METADATA["artifact_regions"]
-    )
-    prehooks: Optional[List[HookData]] = field(
-        default=None, metadata=METADATA["prehooks"]
-    )
-    posthooks: Optional[List[HookData]] = field(
-        default=None, metadata=METADATA["posthooks"]
-    )
+    artifact_regions: Optional[List[Region]] = field(default=None, metadata=METADATA["artifact_regions"])
+    prehooks: Optional[List[HookData]] = field(default=None, metadata=METADATA["prehooks"])
+    posthooks: Optional[List[HookData]] = field(default=None, metadata=METADATA["posthooks"])
 
 
 @dataclass
@@ -547,41 +505,21 @@ class TestConfig(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
     """Test specific configuration section."""
 
     template: Optional[str] = field(default=None, metadata=METADATA["template"])
-    parameters: Dict[ParameterKey, ParameterValue] = field(
-        default_factory=dict, metadata=METADATA["parameters"]
-    )
+    parameters: Dict[ParameterKey, ParameterValue] = field(default_factory=dict, metadata=METADATA["parameters"])
     regions: Optional[List[Region]] = field(default=None, metadata=METADATA["regions"])
-    artifact_regions: Optional[List[Region]] = field(
-        default=None, metadata=METADATA["artifact_regions"]
-    )
-    tags: Optional[Dict[TagKey, TagValue]] = field(
-        default=None, metadata=METADATA["tags"]
-    )
+    artifact_regions: Optional[List[Region]] = field(default=None, metadata=METADATA["artifact_regions"])
+    tags: Optional[Dict[TagKey, TagValue]] = field(default=None, metadata=METADATA["tags"])
     auth: Optional[Dict[Region, str]] = field(default=None, metadata=METADATA["auth"])
-    s3_bucket: Optional[S3BucketName] = field(
-        default=None, metadata=METADATA["s3_bucket"]
-    )
-    s3_regional_buckets: Optional[bool] = field(
-        default=None, metadata=METADATA["s3_regional_buckets"]
-    )
-    az_blacklist: Optional[List[AzId]] = field(
-        default=None, metadata=METADATA["az_ids"]
-    )
+    s3_bucket: Optional[S3BucketName] = field(default=None, metadata=METADATA["s3_bucket"])
+    s3_regional_buckets: Optional[bool] = field(default=None, metadata=METADATA["s3_regional_buckets"])
+    az_blacklist: Optional[List[AzId]] = field(default=None, metadata=METADATA["az_ids"])
     role_name: Optional[str] = field(default=None, metadata=METADATA["role_name"])
 
     stack_name: Optional[str] = field(default=None, metadata=METADATA["stack_name"])
-    stack_name_prefix: Optional[str] = field(
-        default=None, metadata=METADATA["stack_name_prefix"]
-    )
-    stack_name_suffix: Optional[str] = field(
-        default=None, metadata=METADATA["stack_name_suffix"]
-    )
-    prehooks: Optional[List[HookData]] = field(
-        default=None, metadata=METADATA["prehooks"]
-    )
-    posthooks: Optional[List[HookData]] = field(
-        default=None, metadata=METADATA["posthooks"]
-    )
+    stack_name_prefix: Optional[str] = field(default=None, metadata=METADATA["stack_name_prefix"])
+    stack_name_suffix: Optional[str] = field(default=None, metadata=METADATA["stack_name_suffix"])
+    prehooks: Optional[List[HookData]] = field(default=None, metadata=METADATA["prehooks"])
+    posthooks: Optional[List[HookData]] = field(default=None, metadata=METADATA["posthooks"])
 
 
 # pylint: disable=too-many-instance-attributes
@@ -589,62 +527,30 @@ class TestConfig(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
 class ProjectConfig(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
     """Project specific configuration section"""
 
-    name: Optional[ProjectName] = field(
-        default=None, metadata=METADATA["project__name"]
-    )
+    name: Optional[ProjectName] = field(default=None, metadata=METADATA["project__name"])
     auth: Optional[Dict[Region, str]] = field(default=None, metadata=METADATA["auth"])
     owner: Optional[str] = field(default=None, metadata=METADATA["project__owner"])
     regions: Optional[List[Region]] = field(default=None, metadata=METADATA["regions"])
-    artifact_regions: Optional[List[Region]] = field(
-        default=None, metadata=METADATA["artifact_regions"]
-    )
-    az_blacklist: Optional[List[AzId]] = field(
-        default=None, metadata=METADATA["az_ids"]
-    )
-    package_lambda: Optional[bool] = field(
-        default=None, metadata=METADATA["package_lambda"]
-    )
-    lambda_zip_path: Optional[str] = field(
-        default=None, metadata=METADATA["lambda_zip_path"]
-    )
-    lambda_source_path: Optional[str] = field(
-        default=None, metadata=METADATA["lambda_source_path"]
-    )
-    s3_bucket: Optional[S3BucketName] = field(
-        default=None, metadata=METADATA["s3_bucket"]
-    )
-    s3_regional_buckets: Optional[bool] = field(
-        default=None, metadata=METADATA["s3_regional_buckets"]
-    )
-    parameters: Optional[Dict[ParameterKey, ParameterValue]] = field(
-        default=None, metadata=METADATA["parameters"]
-    )
-    build_submodules: Optional[bool] = field(
-        default=None, metadata=METADATA["build_submodules"]
-    )
+    artifact_regions: Optional[List[Region]] = field(default=None, metadata=METADATA["artifact_regions"])
+    az_blacklist: Optional[List[AzId]] = field(default=None, metadata=METADATA["az_ids"])
+    package_lambda: Optional[bool] = field(default=None, metadata=METADATA["package_lambda"])
+    lambda_zip_path: Optional[str] = field(default=None, metadata=METADATA["lambda_zip_path"])
+    lambda_source_path: Optional[str] = field(default=None, metadata=METADATA["lambda_source_path"])
+    s3_bucket: Optional[S3BucketName] = field(default=None, metadata=METADATA["s3_bucket"])
+    s3_regional_buckets: Optional[bool] = field(default=None, metadata=METADATA["s3_regional_buckets"])
+    parameters: Optional[Dict[ParameterKey, ParameterValue]] = field(default=None, metadata=METADATA["parameters"])
+    build_submodules: Optional[bool] = field(default=None, metadata=METADATA["build_submodules"])
     template: Optional[str] = field(default=None, metadata=METADATA["template"])
-    tags: Optional[Dict[TagKey, TagValue]] = field(
-        default=None, metadata=METADATA["tags"]
-    )
-    s3_enable_sig_v2: Optional[bool] = field(
-        default=None, metadata=METADATA["enable_sig_v2"]
-    )
-    s3_object_acl: Optional[S3Acl] = field(
-        default=None, metadata=METADATA["s3_object_acl"]
-    )
-    shorten_stack_name: Optional[bool] = field(
-        default=None, metadata=METADATA["shorten_stack_name"]
-    )
+    tags: Optional[Dict[TagKey, TagValue]] = field(default=None, metadata=METADATA["tags"])
+    s3_enable_sig_v2: Optional[bool] = field(default=None, metadata=METADATA["enable_sig_v2"])
+    s3_object_acl: Optional[S3Acl] = field(default=None, metadata=METADATA["s3_object_acl"])
+    shorten_stack_name: Optional[bool] = field(default=None, metadata=METADATA["shorten_stack_name"])
     role_name: Optional[str] = field(default=None, metadata=METADATA["role_name"])
 
     org_id: Optional[str] = field(default=None, metadata=METADATA["org_id"])
 
-    prehooks: Optional[List[HookData]] = field(
-        default=None, metadata=METADATA["prehooks"]
-    )
-    posthooks: Optional[List[HookData]] = field(
-        default=None, metadata=METADATA["posthooks"]
-    )
+    prehooks: Optional[List[HookData]] = field(default=None, metadata=METADATA["prehooks"])
+    posthooks: Optional[List[HookData]] = field(default=None, metadata=METADATA["posthooks"])
 
 
 PROPAGATE_KEYS = ["tags", "parameters", "auth"]
@@ -656,16 +562,14 @@ PROPOGATE_ITEMS = [
     "s3_regional_buckets",
     "prehooks",
     "posthooks",
-    "role_name"
+    "role_name",
 ]
 
 
 def generate_regional_bucket_name(region_obj: RegionObj, prefix: str = "tcat"):
     if len(prefix) > 8 or len(prefix) < 1:  # pylint: disable=len-as-condition
         raise TaskCatException("prefix must be between 1 and 8 characters long")
-    hashed_account_id = uuid5(
-        name=str(region_obj.account_id), namespace=UUID(int=0)
-    ).hex
+    hashed_account_id = uuid5(name=str(region_obj.account_id), namespace=UUID(int=0)).hex
     return f"{prefix}-{hashed_account_id}-{region_obj.name}"
 
 
@@ -718,16 +622,12 @@ class BaseConfig(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
             self.tests[test_key] = TestConfig.from_dict(test_dict)
 
     def _propogate_source(self):
-        self._source["project"] = self._merge(
-            self._source["general"], self._source["project"]
-        )
+        self._source["project"] = self._merge(self._source["general"], self._source["project"])
         for test_key in self._source["tests"]:
             test = self._merge(self._source["project"], self._source["tests"][test_key])
             self._source["tests"][test_key] = test
 
-    def set_source(
-        self, source_name: str, dest: Optional[Any] = None
-    ) -> Optional[Union[str, dict]]:
+    def set_source(self, source_name: str, dest: Optional[Any] = None) -> Optional[Union[str, dict]]:
         base_case = False
         if dest is None:
             base_case = True
@@ -743,9 +643,7 @@ class BaseConfig(JsonSchemaMixin, allow_additional_props=False):  # type: ignore
         return None
 
     @classmethod
-    def merge(
-        cls, base_config: "BaseConfig", merge_config: "BaseConfig"
-    ) -> "BaseConfig":
+    def merge(cls, base_config: "BaseConfig", merge_config: "BaseConfig") -> "BaseConfig":
 
         merged = base_config.to_dict()
         merge_nested_dict(merged, merge_config.to_dict())
